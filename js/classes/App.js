@@ -1,6 +1,6 @@
 //eventos
 import {inputs, formulario} from '../selectores.js'
-import {crearCita, validar} from '../funciones.js'
+import {crearCita, validar, crearDB} from '../funciones.js'
 
 class App {
     constructor(){
@@ -8,8 +8,8 @@ class App {
     }
 
     initApp(){
-        eventListeners()
-
+        crearDB(); 
+        eventListeners();
         function eventListeners(){
             formulario.addEventListener('submit',crearCita);
             inputs.forEach(input =>{

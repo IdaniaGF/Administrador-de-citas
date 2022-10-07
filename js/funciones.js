@@ -1,9 +1,10 @@
-import Citas from './classes/Citas.js'
 import UI from './classes/UI.js'
 import {formulario} from './selectores.js'
 
-const listaCitas = new Citas(); 
-const ui = new UI(); 
+export let DB; 
+export let heading = document.querySelector('#administra'); 
+export const ui = new UI(); 
+let citaId = "";  
 const citaObj = {
     mascota: "",
     propietario: "",
@@ -11,7 +12,6 @@ const citaObj = {
     fecha: "", 
     hora: "",
     sintomas: "", 
-    id: "",
 }
 
 //funciones
@@ -22,19 +22,16 @@ function capturarDato(input){
 
 export function crearCita(e){
     e.preventDefault();
-    if(citaObj.id != ""){
+    if(citaId != ""){
         //spread 
-        listaCitas.editarCita({...citaObj}); 
+        const trans = DB.transaction(['citas'], 'readwrite');
+        const objectStore = trans.objectStore('citas'); 
+        objectStore.put(citaObj, citaId); 
     }else{
-        citaObj.id=Date.now(); 
-        listaCitas.agregarCita({...citaObj});  
-
-        //agregar registro a la indexedDB
-        console.log(citaObj)
         agregarCitaDB(citaObj); 
     }
-    ui.agregarCita(listaCitas); 
-    citaObj.id = ""; 
+    citaId = ""; 
+    ui.imprimirCitas(); 
     formulario.reset(); 
 }
 
@@ -56,25 +53,41 @@ export function validar(input){
 }
 
 export function eliminarCita(id){
-    listaCitas.eliminarCita(id); 
-    ui.agregarCita(listaCitas); 
+    //Create a transaction, mentioning all the sotres it's going to access 
+    const trans = DB.transaction(['citas'], 'readwrite'); 
+    //get de the storeObject
+    const objectStore = trans.objectStore('citas'); 
+    //perform the request to the object sotre
+    objectStore.delete(id); 
+    trans.oncomplete = () => {
+        console.log(`cita ${id} ha sido eliminada`);
+        ui.imprimirCitas(); 
+    }
+    trans.onerror = () => {
+        console.log('Hubo un error'); 
+    }
 }
 
 export function infoCita(id){
-    const cita = listaCitas.listaCitas.find(cita => cita.id == id); 
+    const trans = DB.transaction(['citas'], 'readonly');
+    const objectStore = trans.objectStore('citas'); 
+    objectStore.get(id)
+    .onsuccess = (e) =>{
+        const cita = e.target.result; 
 
-    citaObj.mascota = cita.mascota; 
-    citaObj.propietario = cita.propietario;
-    citaObj.telefono = cita.telefono; 
-    citaObj.fecha = cita.fecha; 
-    citaObj.hora = cita.hora; 
-    citaObj.sintomas = cita.sintomas; 
-    citaObj.id = id; 
-
-    ui.cargarEdicion(cita); 
+        citaObj.mascota = cita.mascota; 
+        citaObj.propietario = cita.propietario;
+        citaObj.telefono = cita.telefono; 
+        citaObj.fecha = cita.fecha; 
+        citaObj.hora = cita.hora; 
+        citaObj.sintomas = cita.sintomas; 
+        citaId = id; 
+    
+        ui.cargarEdicion(cita); 
+    }
 }
 
-let DB; 
+
 
 export function crearDB(){
     //abrir una conexión con la base de datos
@@ -84,9 +97,6 @@ export function crearDB(){
     //evento que indica que la base de datos está lista pero que su versión está desactualizada
     openRequest.onupgradeneeded = function(e){
         const dataBase = e.target.result; 
-        console.log(e);
-        console.log(e.target);
-        console.log(dataBase); 
 
         const objectStore = dataBase.createObjectStore('citas', {keypath: 'id', autoIncrement: true});
 
@@ -96,7 +106,6 @@ export function crearDB(){
         objectStore.createIndex('fecha','fecha', {unique:false}); 
         objectStore.createIndex('hora','hora', {unique:false}); 
         objectStore.createIndex('sintomas','sintomas', {unique:false}); 
-        objectStore.createIndex('id','id', {unique:false}); 
         console.log('DataBase creada y lista'); 
     }
 
@@ -108,9 +117,8 @@ export function crearDB(){
     openRequest.onsuccess = function(){
         console.log('se creó la base de datos con éxito');
         DB = openRequest.result; 
-        console.log(DB); 
+        ui.imprimirCitas(); 
     }
-
 }
 
 function agregarCitaDB(citaObj){
@@ -123,7 +131,8 @@ function agregarCitaDB(citaObj){
 
     //manejar el exito y error de la solicitud 
     request.oncomplete = function(){
-        console.log('la cita fue agregada con éxito');
+        console.log('la cita se agregó con éxito')
+
     }
 
     request.onerror = function(err){
