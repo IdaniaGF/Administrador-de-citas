@@ -4,7 +4,8 @@ import {formulario} from './selectores.js'
 export let DB; 
 export let heading = document.querySelector('#administra'); 
 export const ui = new UI(); 
-let citaId = "";  
+let modificando = false; 
+
 const citaObj = {
     mascota: "",
     propietario: "",
@@ -22,17 +23,12 @@ function capturarDato(input){
 
 export function crearCita(e){
     e.preventDefault();
-    if(citaId != ""){
-        //spread 
-        const trans = DB.transaction(['citas'], 'readwrite');
-        const objectStore = trans.objectStore('citas'); 
-        objectStore.put(citaObj, citaId); 
+    if(modificando){
+        editarCita(citaObj); 
     }else{
+        citaObj.id = Date.now();
         agregarCitaDB(citaObj); 
     }
-    citaId = ""; 
-    ui.imprimirCitas(); 
-    formulario.reset(); 
 }
 
 export function validar(input){
@@ -81,13 +77,12 @@ export function infoCita(id){
         citaObj.fecha = cita.fecha; 
         citaObj.hora = cita.hora; 
         citaObj.sintomas = cita.sintomas; 
-        citaId = id; 
+        citaObj.id = cita.id; 
     
         ui.cargarEdicion(cita); 
+        modificando = true; 
     }
 }
-
-
 
 export function crearDB(){
     //abrir una conexión con la base de datos
@@ -98,7 +93,7 @@ export function crearDB(){
     openRequest.onupgradeneeded = function(e){
         const dataBase = e.target.result; 
 
-        const objectStore = dataBase.createObjectStore('citas', {keypath: 'id', autoIncrement: true});
+        const objectStore = dataBase.createObjectStore('citas', {keyPath: 'id', autoIncrement: true});
 
         objectStore.createIndex('mascota','mascota', {unique:false}); 
         objectStore.createIndex('propietario','propietario', {unique:false}); 
@@ -106,6 +101,7 @@ export function crearDB(){
         objectStore.createIndex('fecha','fecha', {unique:false}); 
         objectStore.createIndex('hora','hora', {unique:false}); 
         objectStore.createIndex('sintomas','sintomas', {unique:false}); 
+        objectStore.createIndex('id', 'id', { unique: false })
         console.log('DataBase creada y lista'); 
     }
 
@@ -130,13 +126,31 @@ function agregarCitaDB(citaObj){
     let request = objectStore.add(citaObj); 
 
     //manejar el exito y error de la solicitud 
-    request.oncomplete = function(){
+    registroDB.oncomplete = function(){
         console.log('la cita se agregó con éxito')
-
+        ui.imprimirCitas(); 
+        formulario.reset(); 
     }
 
-    request.onerror = function(err){
+    registroDB.onerror = function(err){
         console.log(err); 
         console.log('hubo un error en la transaccion')
     }
+}
+
+function editarCita(citaObj){
+    const trans = DB.transaction(['citas'], 'readwrite');
+    const objectStore = trans.objectStore('citas'); 
+    objectStore.put(citaObj); 
+
+    trans.oncomplete = function (){
+        modificando = false; 
+        ui.imprimirCitas(); 
+        formulario.reset(); 
+    }
+
+    trans.onerror = function(err){
+        console.log(err); 
+    }
+
 }

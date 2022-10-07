@@ -52,12 +52,11 @@ class UI{
             const cursor = e.target.result; 
 
             if(cursor){
-                const{mascota, propietario, telefono, fecha, hora, sintomas} = cursor.value;                
+                const{mascota, propietario, telefono, fecha, hora, sintomas, id} = cursor.value;                
                 
                 //Crear un div 
                 const divCita = document.createElement("div"); 
                 divCita.classList.add('cita', 'p-3'); 
-                const id = cursor.key; 
                 divCita.dataset.id=id; 
                 contenedorCitas.appendChild(divCita); 
 
